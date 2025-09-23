@@ -61,8 +61,8 @@ class ProgressBot:
         }
         
         # Repository configuration
-        self.repo_owner = "leyangloh"
-        self.repo_name = "FakeProgress"
+        self.repo_owner = "Human-Augment-Analytics"
+        self.repo_name = "Progress-Tracker"
         
         # Milestones will be auto-discovered from GitHub
         self.milestones = []

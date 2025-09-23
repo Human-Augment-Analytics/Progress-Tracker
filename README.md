@@ -2,14 +2,13 @@
 
 <div align="center">
 
-![GitHub repo size](https://img.shields.io/github/repo-size/leyangloh/FakeProgress)
-![GitHub last commit](https://img.shields.io/github/last-commit/leyangloh/FakeProgress)
-![GitHub issues](https://img.shields.io/github/issues/leyangloh/FakeProgress)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/leyangloh/FakeProgress)
+![GitHub repo size](https://img.shields.io/github/repo-size/Human-Augment-Analytics/Progress-Tracker)
+![GitHub last commit](https://img.shields.io/github/last-commit/Human-Augment-Analytics/Progress-Tracker)
+![GitHub issues](https://img.shields.io/github/issues/Human-Augment-Analytics/Progress-Tracker)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/Human-Augment-Analytics/Progress-Tracker)
 
-*Advanced research group focusing on human-augmented analytics with projects in X-ray imaging, classification, toepad analysis, and 3D coloring*
 
-[View Milestones](https://github.com/leyangloh/FakeProgress/milestones) • [Report Issues](https://github.com/leyangloh/FakeProgress/issues) • [Contribute](https://github.com/leyangloh/FakeProgress/pulls)
+[View Project Tracker](https://human-augment-analytics.github.io/Progress-Tracker/)
 
 </div>
 
@@ -26,8 +25,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/leyangloh/FakeProgress.git
-cd FakeProgress
+git clone https://github.com/Human-Augment-Analytics/Progress-Tracker
+cd Progress-Tracker
 
 # Install dependencies
 pip install -r requirements.txt
@@ -35,6 +34,7 @@ pip install -r requirements.txt
 # Set environment variables
 export GITHUB_TOKEN="your_github_token_here"
 export SLACK_BOT_TOKEN="your_slack_bot_token_here"
+export SLACK_USER_ID="your_slack_bot_id_here"
 ```
 
 ### Usage
