@@ -1,18 +1,12 @@
-name: GitHub Progress Bot
+name: Qualtrics Survey Bot
 
 on:
-  push:
-    branches: [ main ]
-  issues:
-    types: [opened, closed, reopened, milestoned, demilestoned]
-  milestone:
-    types: [created, edited, deleted, closed, opened]
   schedule:
     - cron: '0 17 * * 5'   # Weekly on Friday 5 PM UTC
   workflow_dispatch:
 
 jobs:
-  run-progress-bot:
+  run-qualtrics-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     
@@ -38,16 +32,13 @@ jobs:
           
       - name: Validate environment
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          QUALTRICS_CLIENT_ID: ${{ secrets.QUALTRICS_CLIENT_ID }}
+          QUALTRICS_CLIENT_SECRET: ${{ secrets.QUALTRICS_CLIENT_SECRET }}
+          QUALTRICS_DATACENTER: ${{ secrets.QUALTRICS_DATACENTER }}
         run: |
           echo "Validating environment variables..."
-          
-          if [ -z "$GITHUB_TOKEN" ]; then
-            echo "GITHUB_TOKEN is not set"
-            exit 1
-          fi
           
           if [ -z "$SLACK_BOT_TOKEN" ]; then
             echo "SLACK_BOT_TOKEN secret is not configured"
@@ -61,49 +52,69 @@ jobs:
             exit 1
           fi
           
+          if [ -z "$QUALTRICS_CLIENT_ID" ]; then
+            echo "QUALTRICS_CLIENT_ID secret is not configured"
+            echo "Please add QUALTRICS_CLIENT_ID to repository secrets"
+            exit 1
+          fi
+          
+          if [ -z "$QUALTRICS_CLIENT_SECRET" ]; then
+            echo "QUALTRICS_CLIENT_SECRET secret is not configured"
+            echo "Please add QUALTRICS_CLIENT_SECRET to repository secrets"
+            exit 1
+          fi
+          
+          if [ -z "$QUALTRICS_DATACENTER" ]; then
+            echo "QUALTRICS_DATACENTER secret is not configured"
+            echo "Please add QUALTRICS_DATACENTER to repository secrets"
+            exit 1
+          fi
+          
           echo "All environment variables are configured"
           
-      - name: Run Progress Bot
+      - name: Run Qualtrics Bot
         id: bot-run
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-          GITHUB_REPO_OWNER: ${{ secrets.GITHUB_REPO_OWNER }}
-          GITHUB_REPO_NAME: ${{ secrets.GITHUB_REPO_NAME }}
+          QUALTRICS_CLIENT_ID: ${{ secrets.QUALTRICS_CLIENT_ID }}
+          QUALTRICS_CLIENT_SECRET: ${{ secrets.QUALTRICS_CLIENT_SECRET }}
+          QUALTRICS_DATACENTER: ${{ secrets.QUALTRICS_DATACENTER }}
         run: |
-          echo "Starting GitHub Progress Bot..."
-          echo "Repository: ${{ github.repository }}"
+          echo "Starting Qualtrics Survey Bot..."
           echo "Trigger: ${{ github.event_name }}"
           echo "Run time: $(date)"
           
-          python progress_bot.py
+          python qualtrics_bot.py
           
       - name: Report success
         if: success()
         run: |
-          echo "Progress bot completed successfully!"
-          echo "Milestone data has been processed and sent to Slack"
+          echo "Qualtrics bot completed successfully!"
+          echo "Survey data has been processed and sent to Slack"
           echo "Completed at: $(date)"
           
       - name: Report failure
         if: failure()
         run: |
-          echo "Progress bot failed!"
+          echo "Qualtrics bot failed!"
           echo "Check the logs above for error details"
           echo "Common issues:"
           echo "   - Missing or invalid Slack tokens"
-          echo "   - Missing SLACK_CHANNEL_ID secret"
+          echo "   - Missing or invalid Qualtrics OAuth credentials"
+          echo "   - Invalid datacenter ID"
           echo "   - Network connectivity issues"
-          echo "   - GitHub API rate limits"
-          echo "   - Python dependency issues"
+          echo "   - Qualtrics API rate limits"
+          echo "   - OAuth scope issues (needs manage:surveys)"
           
       - name: Upload logs (on failure)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: bot-failure-logs
+          name: qualtrics-bot-failure-logs
           path: |
             *.log
             /tmp/*.log
           retention-days: 7
+
+
