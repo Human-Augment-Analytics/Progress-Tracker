@@ -59,10 +59,14 @@ def generate_qualtrics_qsf(data):
     # Question counter
     qid_counter = 1
 
-    # Single block containing all questions
-    main_block = {
+    # Create blocks dictionary to store all blocks
+    blocks = {}
+    questions = []
+    
+    # Create initial lab selection block
+    lab_selection_block = {
         "Type": "Default",
-        "Description": "Default Question Block",
+        "Description": "Lab Check",
         "ID": "BL_1",
         "BlockElements": [],
         "Options": {
@@ -72,13 +76,10 @@ def generate_qualtrics_qsf(data):
         }
     }
 
-    # Collect all questions here first
-    questions = []
-
     # Q1: Full Name
     q1_id = f"QID{qid_counter}"
     qid_counter += 1
-    main_block["BlockElements"].append({"Type": "Question", "QuestionID": q1_id})
+    lab_selection_block["BlockElements"].append({"Type": "Question", "QuestionID": q1_id})
 
     questions.append({
         "SurveyID": survey_id,
@@ -113,7 +114,7 @@ def generate_qualtrics_qsf(data):
     # Q2: Which Lab
     q2_id = f"QID{qid_counter}"
     qid_counter += 1
-    main_block["BlockElements"].append({"Type": "Question", "QuestionID": q2_id})
+    lab_selection_block["BlockElements"].append({"Type": "Question", "QuestionID": q2_id})
     
     # Create choices for labs
     lab_choices = {}
@@ -127,18 +128,18 @@ def generate_qualtrics_qsf(data):
         "SurveyID": survey_id,
         "Element": "SQ",
         "PrimaryAttribute": q2_id,
-        "SecondaryAttribute": "Which Lab are you reporting on?",
+        "SecondaryAttribute": "Which Labs are you reporting on?",
         "TertiaryAttribute": None,
         "Payload": {
-            "QuestionText": "Which Lab are you reporting on?",
+            "QuestionText": "Which Labs are you reporting on? (You can select multiple labs)",
             "DataExportTag": "Q2",
             "QuestionType": "MC",
-            "Selector": "SAVR",
+            "Selector": "MAVR",
             "SubSelector": "TX",
             "Configuration": {
                 "QuestionDescriptionOption": "UseText"
             },
-            "QuestionDescription": "Which Lab are you reporting on?",
+            "QuestionDescription": "Which Labs are you reporting on?",
             "Choices": lab_choices,
             "ChoiceOrder": list(range(1, len(lab_names) + 1)),
             "Validation": {
@@ -155,14 +156,33 @@ def generate_qualtrics_qsf(data):
         }
     })
     
-    # For each lab, create project and researcher questions
+    # Store the lab selection block
+    blocks["0"] = lab_selection_block
+    
+    # Create a separate block for each lab
+    block_counter = 2  # Start from BL_2 since BL_1 is the lab selection block
+    
     for lab_idx, lab_name in enumerate(lab_names, 1):
         projects = data[lab_name]
+        
+        # Create a new block for this lab
+        lab_block_id = f"BL_{block_counter}"
+        lab_block = {
+            "Type": "Standard",
+            "Description": lab_name,
+            "ID": lab_block_id,
+            "BlockElements": [],
+            "Options": {
+                "BlockLocking": "false",
+                "RandomizeQuestions": "false",
+                "BlockVisibility": "Expanded"
+            }
+        }
         
         # Q: Which project in this lab?
         q_proj_id = f"QID{qid_counter}"
         qid_counter += 1
-        main_block["BlockElements"].append({"Type": "Question", "QuestionID": q_proj_id})
+        lab_block["BlockElements"].append({"Type": "Question", "QuestionID": q_proj_id})
         
         project_choices = {}
         project_names = sorted(projects.keys())
@@ -176,18 +196,18 @@ def generate_qualtrics_qsf(data):
             "SurveyID": survey_id,
             "Element": "SQ",
             "PrimaryAttribute": q_proj_id,
-            "SecondaryAttribute": f"Which project in {lab_name}?",
+            "SecondaryAttribute": f"Which projects in {lab_name}?",
             "TertiaryAttribute": None,
             "Payload": {
-                "QuestionText": f"Which project are you reporting on in {lab_name} Lab?",
+                "QuestionText": f"Which projects are you reporting on in {lab_name} Lab? (You can select multiple projects)",
                 "DataExportTag": f"Q_{lab_name}_Project",
                 "QuestionType": "MC",
-                "Selector": "SAVR",
+                "Selector": "MAVR",
                 "SubSelector": "TX",
                 "Configuration": {
                     "QuestionDescriptionOption": "UseText"
                 },
-                "QuestionDescription": f"Which project in {lab_name}",
+                "QuestionDescription": f"Which projects in {lab_name}",
                 "Choices": project_choices,
                 "ChoiceOrder": list(range(1, len(project_names) + 1)),
                 "Validation": {
@@ -225,7 +245,7 @@ def generate_qualtrics_qsf(data):
             
             q_eval_id = f"QID{qid_counter}"
             qid_counter += 1
-            main_block["BlockElements"].append({"Type": "Question", "QuestionID": q_eval_id})
+            lab_block["BlockElements"].append({"Type": "Question", "QuestionID": q_eval_id})
             
             # Create researcher choices in matrix format
             researcher_choices = {}
@@ -248,7 +268,7 @@ def generate_qualtrics_qsf(data):
                 "SecondaryAttribute": f"Evaluate {project_name}",
                 "TertiaryAttribute": None,
                 "Payload": {
-                    "QuestionText": f"How do you evaluate the contributions of the following researchers?",
+                    "QuestionText": f"How do you evaluate the contributions of the following researchers in {lab_name} Lab - {project_name} Project?",
                     "DataExportTag": f"Q_{lab_name}_{project_name}",
                     "QuestionType": "Matrix",
                     "Selector": "Likert",
@@ -295,6 +315,10 @@ def generate_qualtrics_qsf(data):
                     "QuestionID": q_eval_id
                 }
             })
+        
+        # Store the lab block
+        blocks[str(block_counter - 1)] = lab_block
+        block_counter += 1
     
     # Build SurveyElements in the correct order
     # 1. Blocks element (BL) - Payload is a dict, not array
@@ -304,26 +328,36 @@ def generate_qualtrics_qsf(data):
         "PrimaryAttribute": "Survey Blocks",
         "SecondaryAttribute": None,
         "TertiaryAttribute": None,
-        "Payload": {
-            "0": main_block
-        }
+        "Payload": blocks
     })
 
-    # 2. Survey flow (FL)
+    # 2. Survey flow (FL) - Create flow that shows all lab blocks
+    flow_elements = [
+        {
+            "ID": "BL_1",
+            "Type": "Block",
+            "FlowID": "FL_1"
+        }
+    ]
+    
+    # Add all lab blocks to the flow (they will be shown/hidden based on display logic)
+    for lab_idx, lab_name in enumerate(lab_names, 1):
+        lab_block_id = f"BL_{lab_idx + 1}"  # BL_2, BL_3, etc.
+        flow_elements.append({
+            "Type": "Standard",
+            "ID": lab_block_id,
+            "FlowID": f"FL_{lab_idx + 10}",
+            "Autofill": []
+        })
+
     survey_flow = {
-        "Flow": [
-            {
-                "ID": "BL_1",
-                "Type": "Block",
-                "FlowID": "FL_1"
-            }
-        ],
-        "Properties": {
-            "Count": 1,
-            "RemovedFieldsets": []
-        },
+        "Type": "Root",
         "FlowID": "FL_1",
-        "Type": "Root"
+        "Flow": flow_elements,
+        "Properties": {
+            "Count": len(flow_elements),
+            "RemovedFieldsets": []
+        }
     }
 
     survey["SurveyElements"].append({
