@@ -4,24 +4,76 @@ import uuid
 from datetime import datetime
 
 def read_excel_data(filepath):
-    """Read the Excel file and return structured data"""
-    df = pd.read_excel(filepath, sheet_name='AggrigatedLabs')
+    """Read the Excel file and return structured data from individual lab sheets"""
+    xl_file = pd.ExcelFile(filepath)
     
-    # Group by Lab and Project
+    # Sheets to ignore
+    ignore_sheets = ['CS8903', 'CS6999', 'Sheet1', 'AggrigatedLabs']
+    
+    # Get all lab sheets (sheet name = lab name)
+    lab_sheets = [s for s in xl_file.sheet_names if s not in ignore_sheets]
+    
     structure = {}
-    for _, row in df.iterrows():
-        lab = row['Lab']
-        project = row['Project']
-        student = row['Student']
+    
+    for lab_name in lab_sheets:
+        df = pd.read_excel(filepath, sheet_name=lab_name)
         
-        if pd.isna(lab) or pd.isna(project) or pd.isna(student):
+        # Find the Student column (might be 'Student' or 'Student ' with trailing space)
+        student_col = None
+        for col in df.columns:
+            if 'Student' in str(col):
+                student_col = col
+                break
+        
+        if student_col is None:
+            print(f"Warning: No Student column found in sheet '{lab_name}', skipping")
             continue
+        
+        # Find the Project column
+        project_col = None
+        for col in df.columns:
+            if 'Project' in str(col):
+                project_col = col
+                break
+        
+        if project_col is None:
+            print(f"Warning: No Project column found in sheet '{lab_name}', skipping")
+            continue
+        
+        # Forward-fill the Project column (project name is usually only in first row of group)
+        df[project_col] = df[project_col].ffill()
+        
+        # Filter out rows with missing students
+        df = df[df[student_col].notna()]
+        
+        # Initialize lab in structure
+        if lab_name not in structure:
+            structure[lab_name] = {}
+        
+        # Group by Project and collect students
+        for _, row in df.iterrows():
+            project = row[project_col]
+            student = row[student_col]
             
-        if lab not in structure:
-            structure[lab] = {}
-        if project not in structure[lab]:
-            structure[lab][project] = []
-        structure[lab][project].append(student)
+            # Skip rows with missing project or student
+            if pd.isna(project) or pd.isna(student):
+                continue
+            
+            # Convert to string and strip whitespace
+            project = str(project).strip()
+            student = str(student).strip()
+            
+            # Skip empty strings
+            if not project or not student:
+                continue
+            
+            # Initialize project in lab structure
+            if project not in structure[lab_name]:
+                structure[lab_name][project] = []
+            
+            # Only add if student name is not already in the list (avoid duplicates)
+            if student not in structure[lab_name][project]:
+                structure[lab_name][project].append(student)
     
     return structure
 
@@ -33,10 +85,13 @@ def generate_qualtrics_qsf(data):
     response_set_id = "RS_" + datetime.now().strftime("%Y%m%d%H%M%S")
 
     # Base survey structure
+    # Extract semester from data if available
+    semester = data.get('_semester', 'Fall 2025')
+    
     survey = {
         "SurveyEntry": {
             "SurveyID": survey_id,
-            "SurveyName": "HAAG Fall 2025 - Weekly Research Team Progress Check",
+            "SurveyName": f"HAAG {semester} - Weekly Research Team Progress Check",
             "SurveyDescription": None,
             "SurveyOwnerID": "UR_XXXXXXXXXXXXX",
             "SurveyBrandID": "gatech",
@@ -118,7 +173,9 @@ def generate_qualtrics_qsf(data):
     
     # Create choices for labs
     lab_choices = {}
-    lab_names = sorted(data.keys())
+    # Filter out non-lab keys (like _semester)
+    lab_data = {k: v for k, v in data.items() if isinstance(v, dict)}
+    lab_names = sorted(lab_data.keys())
     for idx, lab in enumerate(lab_names, 1):
         lab_choices[str(idx)] = {
             "Display": lab
@@ -163,7 +220,7 @@ def generate_qualtrics_qsf(data):
     block_counter = 2  # Start from BL_2 since BL_1 is the lab selection block
     
     for lab_idx, lab_name in enumerate(lab_names, 1):
-        projects = data[lab_name]
+        projects = lab_data[lab_name]
         
         # Create a new block for this lab
         lab_block_id = f"BL_{block_counter}"
@@ -320,6 +377,107 @@ def generate_qualtrics_qsf(data):
         blocks[str(block_counter - 1)] = lab_block
         block_counter += 1
     
+    # Create "Overall Check" block with final questions
+    # Calculate block ID: BL_1 is initial, BL_2 through BL_(len+1) are labs, so overall is BL_(len+2)
+    overall_block_id = f"BL_{len(lab_names) + 2}"
+    overall_block = {
+        "Type": "Standard",
+        "Description": "Overall Check",
+        "ID": overall_block_id,
+        "BlockElements": [],
+        "Options": {
+            "BlockLocking": "false",
+            "RandomizeQuestions": "false",
+            "BlockVisibility": "Expanded"
+        }
+    }
+    
+    # Q: Overall progress toward publication
+    q_overall_id = f"QID{qid_counter}"
+    qid_counter += 1
+    overall_block["BlockElements"].append({"Type": "Question", "QuestionID": q_overall_id})
+    
+    questions.append({
+        "SurveyID": survey_id,
+        "Element": "SQ",
+        "PrimaryAttribute": q_overall_id,
+        "SecondaryAttribute": "How do you evaluate the team's overall progress toward publication?",
+        "TertiaryAttribute": None,
+        "Payload": {
+            "QuestionText": "How do you evaluate the team's overall progress toward publication?",
+            "DataExportTag": "Q_Overall_Progress",
+            "QuestionID": q_overall_id,
+            "QuestionType": "MC",
+            "Selector": "SAHR",
+            "SubSelector": "TX",
+            "Configuration": {
+                "QuestionDescriptionOption": "SpecifyLabel",
+                "TextPosition": "inline",
+                "LabelPosition": "BELOW"
+            },
+            "QuestionDescription": "How do you evaluate the team's overall progress toward publication?",
+            "Choices": {
+                "1": {"Display": "On Track"},
+                "2": {"Display": "Needs Improvement"},
+                "3": {"Display": "Blocked"}
+            },
+            "ChoiceOrder": [1, "2", "3"],
+            "Validation": {
+                "Settings": {
+                    "ForceResponse": "ON",
+                    "ForceResponseType": "ON",
+                    "Type": "None"
+                }
+            },
+            "GradingData": [],
+            "Language": [],
+            "NextChoiceId": 4,
+            "NextAnswerId": 4
+        }
+    })
+    
+    # Q: Anything else you'd like to share
+    q_comments_id = f"QID{qid_counter}"
+    qid_counter += 1
+    overall_block["BlockElements"].append({"Type": "Question", "QuestionID": q_comments_id})
+    
+    questions.append({
+        "SurveyID": survey_id,
+        "Element": "SQ",
+        "PrimaryAttribute": q_comments_id,
+        "SecondaryAttribute": "Anything else you'd like to share about this team's performance and progress?",
+        "TertiaryAttribute": None,
+        "Payload": {
+            "QuestionText": "Anything else you'd like to share about this team's performance and progress?<i> (blockers, concerns, or positive notes)</i><br>",
+            "DataExportTag": "Q_Comments",
+            "QuestionID": q_comments_id,
+            "QuestionType": "TE",
+            "Selector": "ML",
+            "Configuration": {
+                "QuestionDescriptionOption": "UseText"
+            },
+            "QuestionDescription": "Anything else you'd like to share about this team's performance and progress? (blockers, concerns...)",
+            "Validation": {
+                "Settings": {
+                    "ForceResponse": "OFF",
+                    "Type": "None"
+                }
+            },
+            "GradingData": [],
+            "Language": [],
+            "NextChoiceId": 4,
+            "NextAnswerId": 1,
+            "SearchSource": {
+                "AllowFreeResponse": "false"
+            }
+        }
+    })
+    
+    # Store the overall check block
+    # After n labs, blocks["0"] through blocks[str(n-1)] are used, and block_counter = n+1
+    # So we use blocks[str(block_counter - 1)] which is blocks[str(n)]
+    blocks[str(block_counter - 1)] = overall_block
+    
     # Build SurveyElements in the correct order
     # 1. Blocks element (BL) - Payload is a dict, not array
     survey["SurveyElements"].append({
@@ -349,6 +507,15 @@ def generate_qualtrics_qsf(data):
             "FlowID": f"FL_{lab_idx + 10}",
             "Autofill": []
         })
+    
+    # Add the Overall Check block at the end
+    overall_block_id = f"BL_{len(lab_names) + 2}"
+    flow_elements.append({
+        "Type": "Standard",
+        "ID": overall_block_id,
+        "FlowID": f"FL_{len(lab_names) + 100}",
+        "Autofill": []
+    })
 
     survey_flow = {
         "Type": "Root",
@@ -472,6 +639,12 @@ def generate_qualtrics_qsf(data):
 def main():
     """Main function to convert Excel to QSF"""
     
+    # Prompt user for semester
+    semester = input("Enter the semester (e.g., 'Fall 2025', 'Spring 2026'): ").strip()
+    if not semester:
+        semester = "Fall 2025"  # Default
+        print(f"Using default: {semester}")
+    
     # Read Excel file
     print("Reading Excel file...")
     excel_file = "HAAG_Fall_Enrollment_Students.xlsx"
@@ -479,14 +652,16 @@ def main():
     
     print(f"Found {len(data)} labs")
     for lab, projects in data.items():
-        print(f"  {lab}: {len(projects)} projects")
+        if isinstance(projects, dict):  # Skip non-dict entries like _semester
+            print(f"  {lab}: {len(projects)} projects")
     
     # Generate QSF
     print("\nGenerating Qualtrics QSF file...")
+    data['_semester'] = semester  # Pass semester to generation function
     survey = generate_qualtrics_qsf(data)
     
     # Save to file
-    output_file = "HAAG_Fall_2025_Survey.qsf"
+    output_file = f"HAAG_{semester.replace(' ', '_')}_Survey.qsf"
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(survey, f, indent=2, ensure_ascii=False)
     
