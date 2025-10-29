@@ -372,111 +372,125 @@ def generate_qualtrics_qsf(data):
                     "QuestionID": q_eval_id
                 }
             })
+            
+            # Add overall progress question for this project
+            q_progress_id = f"QID{qid_counter}"
+            qid_counter += 1
+            lab_block["BlockElements"].append({"Type": "Question", "QuestionID": q_progress_id})
+            
+            questions.append({
+                "SurveyID": survey_id,
+                "Element": "SQ",
+                "PrimaryAttribute": q_progress_id,
+                "SecondaryAttribute": f"How do you evaluate the team's overall progress toward publication in {project_name}?",
+                "TertiaryAttribute": None,
+                "Payload": {
+                    "QuestionText": f"How do you evaluate the team's overall progress toward publication in {lab_name} Lab - {project_name} Project?",
+                    "DataExportTag": f"Q_{lab_name}_{project_name}_Progress",
+                    "QuestionID": q_progress_id,
+                    "QuestionType": "MC",
+                    "Selector": "SAHR",
+                    "SubSelector": "TX",
+                    "Configuration": {
+                        "QuestionDescriptionOption": "SpecifyLabel",
+                        "TextPosition": "inline",
+                        "LabelPosition": "BELOW"
+                    },
+                    "QuestionDescription": f"How do you evaluate the team's overall progress toward publication in {project_name}?",
+                    "Choices": {
+                        "1": {"Display": "On Track"},
+                        "2": {"Display": "Needs Improvement"},
+                        "3": {"Display": "Blocked"}
+                    },
+                    "ChoiceOrder": [1, "2", "3"],
+                    "Validation": {
+                        "Settings": {
+                            "ForceResponse": "ON",
+                            "ForceResponseType": "ON",
+                            "Type": "None"
+                        }
+                    },
+                    "DisplayLogic": {
+                        "0": {
+                            "0": {
+                                "LogicType": "Question",
+                                "QuestionID": q_proj_id,
+                                "QuestionIsInLoop": "no",
+                                "ChoiceLocator": f"q://{q_proj_id}/SelectableChoice/{proj_idx}",
+                                "Operator": "Selected",
+                                "QuestionIDFromLocator": q_proj_id,
+                                "LeftOperand": f"q://{q_proj_id}/SelectableChoice/{proj_idx}",
+                                "Type": "Expression"
+                            },
+                            "Type": "If"
+                        },
+                        "Type": "BooleanExpression",
+                        "inPage": False
+                    },
+                    "GradingData": [],
+                    "Language": [],
+                    "NextChoiceId": 4,
+                    "NextAnswerId": 4
+                }
+            })
+            
+            # Add comments question for this project
+            q_comments_id = f"QID{qid_counter}"
+            qid_counter += 1
+            lab_block["BlockElements"].append({"Type": "Question", "QuestionID": q_comments_id})
+            
+            questions.append({
+                "SurveyID": survey_id,
+                "Element": "SQ",
+                "PrimaryAttribute": q_comments_id,
+                "SecondaryAttribute": f"Anything else you'd like to share about {project_name}?",
+                "TertiaryAttribute": None,
+                "Payload": {
+                    "QuestionText": f"Anything else you'd like to share about this team's performance and progress in {lab_name} Lab - {project_name} Project?<i> (blockers, concerns, or positive notes)</i><br>",
+                    "DataExportTag": f"Q_{lab_name}_{project_name}_Comments",
+                    "QuestionID": q_comments_id,
+                    "QuestionType": "TE",
+                    "Selector": "ML",
+                    "Configuration": {
+                        "QuestionDescriptionOption": "UseText"
+                    },
+                    "QuestionDescription": f"Anything else you'd like to share about {project_name}? (blockers, concerns...)",
+                    "Validation": {
+                        "Settings": {
+                            "ForceResponse": "OFF",
+                            "Type": "None"
+                        }
+                    },
+                    "DisplayLogic": {
+                        "0": {
+                            "0": {
+                                "LogicType": "Question",
+                                "QuestionID": q_proj_id,
+                                "QuestionIsInLoop": "no",
+                                "ChoiceLocator": f"q://{q_proj_id}/SelectableChoice/{proj_idx}",
+                                "Operator": "Selected",
+                                "QuestionIDFromLocator": q_proj_id,
+                                "LeftOperand": f"q://{q_proj_id}/SelectableChoice/{proj_idx}",
+                                "Type": "Expression"
+                            },
+                            "Type": "If"
+                        },
+                        "Type": "BooleanExpression",
+                        "inPage": False
+                    },
+                    "GradingData": [],
+                    "Language": [],
+                    "NextChoiceId": 4,
+                    "NextAnswerId": 1,
+                    "SearchSource": {
+                        "AllowFreeResponse": "false"
+                    }
+                }
+            })
         
         # Store the lab block
         blocks[str(block_counter - 1)] = lab_block
         block_counter += 1
-    
-    # Create "Overall Check" block with final questions
-    # Calculate block ID: BL_1 is initial, BL_2 through BL_(len+1) are labs, so overall is BL_(len+2)
-    overall_block_id = f"BL_{len(lab_names) + 2}"
-    overall_block = {
-        "Type": "Standard",
-        "Description": "Overall Check",
-        "ID": overall_block_id,
-        "BlockElements": [],
-        "Options": {
-            "BlockLocking": "false",
-            "RandomizeQuestions": "false",
-            "BlockVisibility": "Expanded"
-        }
-    }
-    
-    # Q: Overall progress toward publication
-    q_overall_id = f"QID{qid_counter}"
-    qid_counter += 1
-    overall_block["BlockElements"].append({"Type": "Question", "QuestionID": q_overall_id})
-    
-    questions.append({
-        "SurveyID": survey_id,
-        "Element": "SQ",
-        "PrimaryAttribute": q_overall_id,
-        "SecondaryAttribute": "How do you evaluate the team's overall progress toward publication?",
-        "TertiaryAttribute": None,
-        "Payload": {
-            "QuestionText": "How do you evaluate the team's overall progress toward publication?",
-            "DataExportTag": "Q_Overall_Progress",
-            "QuestionID": q_overall_id,
-            "QuestionType": "MC",
-            "Selector": "SAHR",
-            "SubSelector": "TX",
-            "Configuration": {
-                "QuestionDescriptionOption": "SpecifyLabel",
-                "TextPosition": "inline",
-                "LabelPosition": "BELOW"
-            },
-            "QuestionDescription": "How do you evaluate the team's overall progress toward publication?",
-            "Choices": {
-                "1": {"Display": "On Track"},
-                "2": {"Display": "Needs Improvement"},
-                "3": {"Display": "Blocked"}
-            },
-            "ChoiceOrder": [1, "2", "3"],
-            "Validation": {
-                "Settings": {
-                    "ForceResponse": "ON",
-                    "ForceResponseType": "ON",
-                    "Type": "None"
-                }
-            },
-            "GradingData": [],
-            "Language": [],
-            "NextChoiceId": 4,
-            "NextAnswerId": 4
-        }
-    })
-    
-    # Q: Anything else you'd like to share
-    q_comments_id = f"QID{qid_counter}"
-    qid_counter += 1
-    overall_block["BlockElements"].append({"Type": "Question", "QuestionID": q_comments_id})
-    
-    questions.append({
-        "SurveyID": survey_id,
-        "Element": "SQ",
-        "PrimaryAttribute": q_comments_id,
-        "SecondaryAttribute": "Anything else you'd like to share about this team's performance and progress?",
-        "TertiaryAttribute": None,
-        "Payload": {
-            "QuestionText": "Anything else you'd like to share about this team's performance and progress?<i> (blockers, concerns, or positive notes)</i><br>",
-            "DataExportTag": "Q_Comments",
-            "QuestionID": q_comments_id,
-            "QuestionType": "TE",
-            "Selector": "ML",
-            "Configuration": {
-                "QuestionDescriptionOption": "UseText"
-            },
-            "QuestionDescription": "Anything else you'd like to share about this team's performance and progress? (blockers, concerns...)",
-            "Validation": {
-                "Settings": {
-                    "ForceResponse": "OFF",
-                    "Type": "None"
-                }
-            },
-            "GradingData": [],
-            "Language": [],
-            "NextChoiceId": 4,
-            "NextAnswerId": 1,
-            "SearchSource": {
-                "AllowFreeResponse": "false"
-            }
-        }
-    })
-    
-    # Store the overall check block
-    # After n labs, blocks["0"] through blocks[str(n-1)] are used, and block_counter = n+1
-    # So we use blocks[str(block_counter - 1)] which is blocks[str(n)]
-    blocks[str(block_counter - 1)] = overall_block
     
     # Build SurveyElements in the correct order
     # 1. Blocks element (BL) - Payload is a dict, not array
@@ -507,15 +521,6 @@ def generate_qualtrics_qsf(data):
             "FlowID": f"FL_{lab_idx + 10}",
             "Autofill": []
         })
-    
-    # Add the Overall Check block at the end
-    overall_block_id = f"BL_{len(lab_names) + 2}"
-    flow_elements.append({
-        "Type": "Standard",
-        "ID": overall_block_id,
-        "FlowID": f"FL_{len(lab_names) + 100}",
-        "Autofill": []
-    })
 
     survey_flow = {
         "Type": "Root",
