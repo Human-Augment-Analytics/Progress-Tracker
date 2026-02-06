@@ -48,7 +48,9 @@ class ProgressBot:
     
     def __init__(self, slack_token: str, github_token: str, user_id: str, 
                  qualtrics_client_id: str = None, qualtrics_client_secret: str = None,
-                 qualtrics_datacenter: str = None):
+                 qualtrics_datacenter: str = None,
+                 repo_owner: str = "Human-Augment-Analytics",
+                 repo_name: str = "Progress-Tracker"):
         """
         Initialize the  progress bot.
         
@@ -87,8 +89,8 @@ class ProgressBot:
             self._get_qualtrics_oauth_token()
         
         # Repository configuration
-        self.repo_owner = "Human-Augment-Analytics"
-        self.repo_name = "Progress-Tracker"
+        self.repo_owner = repo_owner
+        self.repo_name = repo_name
         
         # Milestones will be auto-discovered from GitHub
         self.milestones = []
@@ -526,7 +528,7 @@ class ProgressBot:
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"```{progress_bar}``` {progress_percentage:.1f}%"
+                "text": f"{progress_bar} {progress_percentage:.1f}%"
             }
         }
         
@@ -632,7 +634,7 @@ class ProgressBot:
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*Response Progress:*\n```{progress_bar}``` {response_rate:.1f}%"
+                "text": f"*Response Progress:*\n{progress_bar} {response_rate:.1f}%"
             }
         }
         
@@ -949,6 +951,17 @@ def main():
         print("Qualtrics integration disabled")
         print("   To enable: set QUALTRICS_CLIENT_ID, QUALTRICS_CLIENT_SECRET, and QUALTRICS_DATACENTER")
     
+    # Prioritize GITHUB_REPOSITORY which is standard in GitHub Actions
+    full_repo = os.getenv('GITHUB_REPOSITORY')
+    if full_repo and '/' in full_repo:
+        repo_owner, repo_name = full_repo.split('/', 1)
+        print(f"Using GITHUB_REPOSITORY: {repo_owner}/{repo_name}")
+    else:
+        # Fallback to individual vars, handling empty strings as None
+        repo_owner = os.getenv('GITHUB_REPO_OWNER') or 'Human-Augment-Analytics'
+        repo_name = os.getenv('GITHUB_REPO_NAME') or 'Progress-Tracker'
+        print(f"Using split config: {repo_owner}/{repo_name}")
+    
     # Initialize the bot
     bot = ProgressBot(
         slack_token=BOT_TOKEN,
@@ -956,7 +969,9 @@ def main():
         user_id=SLACK_USER_ID,
         qualtrics_client_id=QUALTRICS_CLIENT_ID,
         qualtrics_client_secret=QUALTRICS_CLIENT_SECRET,
-        qualtrics_datacenter=QUALTRICS_DATACENTER
+        qualtrics_datacenter=QUALTRICS_DATACENTER,
+        repo_owner=repo_owner,
+        repo_name=repo_name
     )
     
     # Check command line arguments or run test

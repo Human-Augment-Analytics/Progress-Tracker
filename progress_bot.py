@@ -199,7 +199,7 @@ class ProgressBot:
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"```{progress_bar}``` {progress_percentage:.1f}%"
+                "text": f"{progress_bar} {progress_percentage:.1f}%"
             }
         }
         
@@ -400,9 +400,16 @@ def main():
         print("Please set: export SLACK_CHANNEL_ID='your_channel_id_here'")
         return
     
-    # Optional: Override default repo
-    repo_owner = os.getenv('GITHUB_REPO_OWNER', 'Human-Augment-Analytics')
-    repo_name = os.getenv('GITHUB_REPO_NAME', 'Progress-Tracker')
+    # Prioritize GITHUB_REPOSITORY which is standard in GitHub Actions
+    full_repo = os.getenv('GITHUB_REPOSITORY')
+    if full_repo and '/' in full_repo:
+        repo_owner, repo_name = full_repo.split('/', 1)
+        print(f"Using GITHUB_REPOSITORY: {repo_owner}/{repo_name}")
+    else:
+        # Fallback to individual vars, handling empty strings as None
+        repo_owner = os.getenv('GITHUB_REPO_OWNER') or 'Human-Augment-Analytics'
+        repo_name = os.getenv('GITHUB_REPO_NAME') or 'Progress-Tracker'
+        print(f"Using split config: {repo_owner}/{repo_name}")
     
     bot = ProgressBot(
         slack_token=slack_token,
@@ -417,6 +424,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
 
 
 
